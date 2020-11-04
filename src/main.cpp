@@ -1,5 +1,11 @@
+// Polargraph plotter firmware 
+// by psksvp@gmail.com
+// Aug 12.2020
+
+
 #include <Arduino.h>
-#include <AccelStepper.h>           
+#include <AccelStepper.h>  
+#include <utils.h>         
 
 #define sign(n)  (n < 0 ? -1 : 1)
 
@@ -39,7 +45,6 @@ void blink();
 void moveMotor(float lengthCM, AccelStepper& s);
 void turnMotor(float revolution, AccelStepper& s);
 void rotateMotor(float angle, AccelStepper& s);
-void runSerialRead(void(*read)(const String&));
 void commandReceived(const String& s);
 void setWiresLength(float newLeftLength, 
                     float newRightLength, 
@@ -62,6 +67,7 @@ void reportReady()
 void setup() 
 {
   Serial.begin(9600); 
+  reportSystemTypeSize();
   reportReady();
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -95,22 +101,11 @@ void commandReceived(const String& s)
 {
   static float b[] = {0, 0, 0, 0, 0, 0, 0, 0, 0 ,0};
 
-  int i = 0;
-  int f = 0;
-  int idx = s.indexOf(',', f);
-  while(i < 10 && idx >= 0)
+  if(parseFloatCSV(s, b, 10) >= 2)
   {
-    b[i] = s.substring(f, idx).toFloat();
-    f = idx + 1;
-    i = i + 1;
-    idx = s.indexOf(',', f);
-    if(i < 10 && idx < 0 && f < s.length()) // capture the last one 
-    {
-      b[i] = s.substring(f).toFloat();
-    }
+    running = true;
+    setWiresLength(b[0], b[1], true);
   }
-  running = true;
-  setWiresLength(b[0], b[1], true);
 }
 
 void setWiresLength(float newLeftLength, 
@@ -143,21 +138,6 @@ void rotateMotor(float angle, AccelStepper& s)
 {
   long d = (long)(angle * stepsPerRevolution / 360.0);
   s.moveTo(s.currentPosition() + d);
-}
-
-void runSerialRead(void(*read)(const String&))
-{
-  static String command = "";
-  if (Serial.available()) 
-  {
-    char inChar = (char)Serial.read();
-    command += inChar;
-    if (inChar == '\n') 
-    {
-      read(command);
-      command = "";
-    }
-  }
 }
 
 void idle()
